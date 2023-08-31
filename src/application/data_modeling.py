@@ -1,9 +1,9 @@
 import os
 import pandas as pd
 from  typing import List
-from api import make_api_call
-from api import create_df_of_events
-from db import load_df_to_postgress
+from utils.api import make_api_call
+from utils.api import create_df_of_events
+from utils.dbdb import load_df_to_postgress
 
 class DataModeling:
     def __init__(self, api_key, df):
