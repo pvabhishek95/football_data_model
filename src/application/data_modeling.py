@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 from  typing import List
+import sys
+sys.path.append("football_data_model/utils/")
 from utils.api import make_api_call
 from utils.api import create_df_of_events
 from utils.db import load_df_to_postgress
