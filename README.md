@@ -10,7 +10,7 @@ To run the code, you will need
 Clone the git repo and run the ETL as shown below.
 
 ```bash
-git clone https://github.com/josephmachado/local_dev.git
+git clone https://github.com/pvabhishek95/football_data_model.git
 cd football_data_model
 make up
 make run-etl # run the ETL process
