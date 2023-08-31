@@ -1,32 +1,30 @@
-from contextlib import contextmanager
-from dataclasses import dataclass
-
+from typing import List
+from sqlalchemy import create_engine
 import psycopg2
+import pandas as pd
 
 
-@dataclass
-class DBConnection:
-    db: str
-    user: str
-    password: str
-    host: str
-    port: int
+def load_df_to_postgress(df_list: [pd.DataFrame], table_names: List[str]):
+    # establish connections
+    conn_string = 'postgresql://postgres:admin@127.0.0.1/soccer_data_model'
 
+    db = create_engine(conn_string)
+    conn = db.connect()
+    conn1 = psycopg2.connect(
+        database="soccer_data_model",
+    user='postgres', 
+    password='admin', 
+    host='localhost', 
+    port= '5432'
+    )
 
-class WarehouseConnection:
-    def __init__(self, db_conn: DBConnection):
-        self.conn_url = (
-            f"postgresql://{db_conn.user}:{db_conn.password}@"
-            f"{db_conn.host}:{db_conn.port}/{db_conn.db}"
-        )
+    conn1.autocommit = True
+    cursor = conn1.cursor()
 
-    @contextmanager
-    def managed_cursor(self, cursor_factory=None):
-        self.conn = psycopg2.connect(self.conn_url)
-        self.conn.autocommit = True
-        self.curr = self.conn.cursor(cursor_factory=cursor_factory)
-        try:
-            yield self.curr
-        finally:
-            self.curr.close()
-            self.conn.close()
+    for i in range(len(df_list)):
+        print("Loading data now")
+        df = df_list[i]
+        df.to_sql(table_names[i], conn, if_exists= 'replace', index=False)
+
+    conn1.commit()
+    conn1.close()

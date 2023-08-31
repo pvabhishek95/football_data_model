@@ -1,6 +1,4 @@
-black==22.3.0
-pytest==7.1.2
-flake8==4.0.1
-mypy==0.950
-isort==5.10.1
-psycopg2==2.9.3
+pandas==1.5.2
+psycopg2-binary==2.9.6
+requests==2.27.1
+SQLAlchemy==1.4.32
