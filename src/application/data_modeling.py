@@ -1,11 +1,9 @@
 import os
 import pandas as pd
 from  typing import List
-import sys
-sys.path.append("football_data_model/utils/")
-from utils.api import make_api_call
-from utils.api import create_df_of_events
-from utils.db import load_df_to_postgress
+from api import make_api_call
+from api import create_df_of_events
+from db import load_df_to_postgress
 
 class DataModeling:
     def __init__(self, api_key, df):
@@ -21,6 +19,11 @@ class DataModeling:
             type_home = type[0]+"_home"
             type_away = type[0]+"_away"
         return [type_home, type_away]
+    
+    def cast_column_to_int(self, df, column_names):
+        for column_name in column_names:
+            df[column_name] = pd.to_numeric(df[column_name], errors='coerce').fillna(0, downcast='infer')
+        return df
 
     def create_fact_matches(self) -> pd.DataFrame:
         column_set_one = ["match_id",
@@ -57,12 +60,11 @@ class DataModeling:
         exploded_df = exploded_df[["match_id", "time", "home_scorer_id", "away_scorer_id", "score", "info", "score_info_time"]]
         result_df = df_1.merge(exploded_df, on="match_id", how="left")
         result_df.rename(columns={"score": "current_score", "time": "score_time"}, inplace=True)
-        result_df['match_hometeam_score'] = pd.to_numeric(result_df.match_hometeam_score, errors='coerce').fillna(0, downcast='infer')
-        result_df['match_awayteam_score'] = pd.to_numeric(result_df.match_awayteam_score, errors='coerce').fillna(0, downcast='infer')
+        str_columns = ['match_id', 'country_id', 'league_id', 'match_hometeam_id', 'match_awayteam_id', 'match_round', 'home_scorer_id', 'away_scorer_id', 'match_hometeam_score', 'match_awayteam_score', 'match_hometeam_halftime_score', 'match_awayteam_halftime_score']
+        result_df = self.cast_column_to_int(result_df, str_columns )
+        result_df['match_date'] = pd.to_datetime(result_df['match_date'])
+        result_df['match_awayteam_halftime_score'] = pd.to_numeric(result_df.match_awayteam_halftime_score, errors='coerce').fillna(0, downcast='infer')
         result_df["total_scores"] = result_df["match_hometeam_score"]+result_df["match_awayteam_score"]
-        result_df.loc[result_df["match_hometeam_score"] > result_df["match_awayteam_score"], "outcome"] = "Home Win"
-        result_df.loc[result_df["match_hometeam_score"] < result_df["match_awayteam_score"], "outcome"] = "Away Win"
-        result_df.loc[result_df["match_hometeam_score"] == result_df["match_awayteam_score"], "outcome"] = "Draw"
         return result_df
 
     def create_fact_cards(self) -> pd.DataFrame:
@@ -73,7 +75,12 @@ class DataModeling:
         exploded_df = df_2.explode("cards", ignore_index=True)
         exploded_df = pd.concat([exploded_df["match_id"], pd.json_normalize(exploded_df["cards"])], axis=1)
         exploded_df = exploded_df[["match_id","time", "card", "info", "home_player_id", "away_player_id", "score_info_time"]]
+        df_1['match_id'] = pd.to_numeric(df_1.match_id, errors='coerce').fillna(0, downcast='infer')
+        str_columns = ['match_id', 'home_player_id', 'away_player_id']
+        exploded_df = self.cast_column_to_int(exploded_df, str_columns)
         result_df = df_1.merge(exploded_df, on="match_id", how="left")
+        str_columns = ['match_hometeam_id', 'match_awayteam_id']
+        result_df = self.cast_column_to_int(result_df, str_columns)
         return result_df
 
     def create_fact_lineups(self) -> List[pd.DataFrame]:
@@ -96,12 +103,13 @@ class DataModeling:
                     player_name = lineup["lineup_player"]
                     player_number = lineup["lineup_number"]
                     player_position = lineup["lineup_position"]
+                    player_id = lineup["player_key"]
                     isSubstitute = 0
                     isCoach = 0
                     isMissingPlayer = 0
                     isAway = 1 if team =="away" else 0
-                    lineup_list.append([match_id, team_id, player_number, player_position, isSubstitute, isCoach, isMissingPlayer, isAway])
-                    player_list.append([player_number, player_name, player_position, team_id ])
+                    lineup_list.append([match_id, team_id, player_number, player_position, isSubstitute, isCoach, isMissingPlayer, isAway, player_id])
+                    player_list.append([player_number, player_name, player_position, team_id, player_id ])
 
                 # Iterate through substitutes
                 for substitute in team_data["substitutes"]:
@@ -110,12 +118,13 @@ class DataModeling:
                     player_name = substitute["lineup_player"]
                     player_number = substitute["lineup_number"]
                     player_position = substitute["lineup_position"]
+                    player_id = substitute["player_key"]
                     isSubstitute = 1
                     isCoach = 0
                     isMissingPlayer = 0
                     isAway = 1 if team =="away" else 0
-                    lineup_list.append([match_id, team_id, player_number, player_position, isSubstitute, isCoach, isMissingPlayer, isAway])
-                    player_list.append([player_number, player_name,  player_position, team_id ])
+                    lineup_list.append([match_id, team_id, player_number, player_position, isSubstitute, isCoach, isMissingPlayer, isAway, player_id])
+                    player_list.append([player_number, player_name,  player_position, team_id, player_id ])
                 
                 # Iterate through coaches
                 for coach in team_data["coach"]:
@@ -124,12 +133,13 @@ class DataModeling:
                     player_name = coach["lineup_player"]
                     player_number = coach["lineup_number"]
                     player_position = coach["lineup_position"]
+                    player_id = coach["player_key"]
                     isSubstitute = 0
                     isCoach = 1
                     isMissingPlayer = 0
                     isAway = 1 if team =="away" else 0
-                    lineup_list.append([match_id, team_id, player_number, player_position, isSubstitute, isCoach, isMissingPlayer, isAway])
-                    player_list.append([player_number, player_name, player_position, team_id ])
+                    lineup_list.append([match_id, team_id, player_number, player_position, isSubstitute, isCoach, isMissingPlayer, isAway, player_id])
+                    player_list.append([player_number, player_name, player_position, team_id, player_id ])
                 
                 for player in team_data["missing_players"]:
                     match_id = row["match_id"]
@@ -137,27 +147,36 @@ class DataModeling:
                     player_name = player["lineup_player"]
                     player_number = player["lineup_number"]
                     player_position = player["lineup_position"]
+                    player_id = player["player_key"]
                     isSubstitute = 0
                     isCoach = 0
                     isMissingPlayer = 1
                     isAway = 1 if team =="away" else 0
-                    lineup_list.append([match_id, team_id, player_number, player_position, isSubstitute, isCoach, isMissingPlayer, isAway])
-                    player_list.append([player_number, player_name, player_position, team_id ])
+                    lineup_list.append([match_id, team_id, player_number, player_position, isSubstitute, isCoach, isMissingPlayer, isAway, player_id])
+                    player_list.append([player_number, player_name, player_position, team_id, player_id ])
 
-        result_df_1 = pd.DataFrame(lineup_list, columns=["match_id", "team_id", "player_number", "player_position", "isSubstitute", "isCoach", "isMissingPlayer", "isAway"])
-        result_df_2 = pd.DataFrame(player_list, columns=["player_number", "player_name", "player_position", "team_id"])
+        result_df_1 = pd.DataFrame(lineup_list, columns=["match_id", "team_id", "player_number", "player_position", "isSubstitute", "isCoach", "isMissingPlayer", "isAway", "player_id"])
+        str_columns = ['match_id', 'team_id', 'player_number', 'player_position', 'player_id']
+        result_df_1 = self.cast_column_to_int(result_df_1, str_columns)
+        result_df_2 = pd.DataFrame(player_list, columns=["player_number", "player_name", "player_position", "team_id", "player_id"])
         result_df_2 = result_df_2.drop_duplicates(subset=["player_number"])
+        str_columns = ['team_id', 'player_number', 'player_position', 'player_id']
+        result_df_2 = self.cast_column_to_int(result_df_2, str_columns)
         return [result_df_1, result_df_2]
 
     def create_dim_leagues(self) -> pd.DataFrame:
         column_set = ["league_id", "league_name", "league_logo"]
         result_df = self.df[column_set]
+        str_columns = ['league_id']
+        result_df = self.cast_column_to_int(result_df, str_columns)
         result_df = result_df.drop_duplicates(subset=['league_id'])
         return result_df
 
     def create_dim_countries(self) -> pd.DataFrame:
         column_set = ["country_id", "country_name", "country_logo"]
         result_df = self.df[column_set]
+        str_columns = ['country_id']
+        result_df = self.cast_column_to_int(result_df, str_columns)
         result_df = result_df.drop_duplicates(subset=['country_id'])
         return result_df
 
@@ -165,11 +184,13 @@ class DataModeling:
         column_set_one = ["match_hometeam_id", "match_hometeam_name", "team_home_badge"]
         column_set_two = ["match_awayteam_id", "match_awayteam_name", "team_away_badge"]
         df_1 = self.df[column_set_one]
-        df_1.rename(columns={"match_hometeam_id": "hometeam_id", "match_hometeam_name": "hometeam_name", "team_home_badge": "home_badge"}, inplace=True)
+        df_1.rename(columns={"match_hometeam_id": "team_id", "match_hometeam_name": "team_name", "team_home_badge": "badge"}, inplace=True)
         df_2 = self.df[column_set_two]
-        df_2.rename(columns={"match_awayteam_id": "hometeam_id", "match_awayteam_name": "hometeam_name", "team_away_badge": "home_badge"}, inplace=True)
+        df_2.rename(columns={"match_awayteam_id": "team_id", "match_awayteam_name": "team_name", "team_away_badge": "badge"}, inplace=True)
         result_df = df_1.append(df_2)
-        result_df = result_df.drop_duplicates(subset=['hometeam_id'])
+        str_columns = ['team_id']
+        result_df = self.cast_column_to_int(result_df, str_columns)
+        result_df = result_df.drop_duplicates(subset=['team_id'])
         return result_df
 
     def create_fact_substitutions(self) -> pd.DataFrame:
@@ -192,6 +213,8 @@ class DataModeling:
                     substitute_list.append([match_id, team_id, time, from_player_id.strip(), to_player_id.strip(), isAway])
 
         result_df = pd.DataFrame(substitute_list, columns=["match_id", "team_id", "time", "from_player_id", "to_player_id", "isAway"])
+        str_columns = ['match_id', 'team_id', 'from_player_id', 'to_player_id']
+        result_df = self.cast_column_to_int(result_df, str_columns)
         return result_df
 
     def create_fact_statistics(self) -> pd.DataFrame:
@@ -202,17 +225,42 @@ class DataModeling:
             statistics_1half = row["statistics_1half"]
 
             #Iterate through "statistics"
-            statistics_dic = {"match_id" : row["match_id"], "isFistHalf":0}
+            statistics_dic = {"match_id" : int(row["match_id"]), "isfirsthalf":0}
             for stats in statistics_data:
                 type_home, type_away = self._generate_key_name(stats["type"])
+                if int(row["match_hometeam_score"]) > int(row["match_awayteam_score"]):
+                    statistics_dic["outcome"] = "Home Win"
+                    statistics_dic["hometeam_points"] = 3
+                    statistics_dic["awayteam_points"] = 0
+
+                elif int(row["match_hometeam_score"]) < int(row["match_awayteam_score"]):
+                    statistics_dic["outcome"] = "Away Win"
+                    statistics_dic["hometeam_points"] = 0
+                    statistics_dic["awayteam_points"] = 3
+                else:
+                    statistics_dic["outcome"] = "Draw"
+                    statistics_dic["hometeam_points"] = 1
+                    statistics_dic["awayteam_points"] = 1
+                statistics_dic["match_awayteam_id"] = int(row["match_awayteam_id"])
+                statistics_dic["match_hometeam_id"] = int(row["match_hometeam_id"])
+                statistics_dic["match_awayteam_score"] = int(row["match_awayteam_score"])
+                statistics_dic["match_hometeam_score"] = int(row["match_hometeam_score"])
+                statistics_dic["match_awayteam_score_conceded"] = int(row["match_hometeam_score"])
+                statistics_dic["match_hometeam_score_conceded"] = int(row["match_awayteam_score"])
                 statistics_dic[type_home] = stats["home"]
                 statistics_dic[type_away] = stats["away"]
             all_stats_list.append(statistics_dic )
 
             #Iterate through "statistics_1half"
-            statistics_1half_dic = {"match_id":row["match_id"], "isFistHalf":1}
+            statistics_1half_dic = {"match_id":int(row["match_id"]), "isfirsthalf":1}
             for stats in statistics_1half:
                 type_home, type_away = self._generate_key_name(stats["type"])
+                statistics_1half_dic["match_awayteam_id"] = int(row["match_awayteam_id"])
+                statistics_1half_dic["match_hometeam_id"] = int(row["match_hometeam_id"])
+                statistics_1half_dic["match_awayteam_score"] = int(row["match_awayteam_halftime_score"])
+                statistics_1half_dic["match_hometeam_score"] = int(row["match_hometeam_halftime_score"])
+                statistics_1half_dic["match_awayteam_score_conceded"] = int(row["match_hometeam_halftime_score"])
+                statistics_1half_dic["match_hometeam_score_conceded"] = int(row["match_awayteam_halftime_score"])
                 statistics_1half_dic[type_home] = stats["home"]
                 statistics_1half_dic[type_away] = stats["away"]
             all_stats_list.append(statistics_1half_dic)
