@@ -5,7 +5,7 @@ down:
 	docker compose --env-file env down 
 
 sh:
-	docker exec -ti loader bash
+	docker exec -ti abhishek_app bash
 
 run-etl:
 	docker exec abhishek_app python data_modeling.py
