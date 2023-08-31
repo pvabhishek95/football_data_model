@@ -11,5 +11,5 @@ run-etl:
 	docker exec abhishek_app python data_modeling.py
 
 warehouse:
-	docker exec -ti warehouse psql postgres://sdeuser:sdepassword1234@localhost:5432/warehouse
+	docker exec -ti warehouse psql postgres://admin:admin@localhost:5432/warehouse
 
