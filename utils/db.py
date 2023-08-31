@@ -8,12 +8,11 @@ from sqlalchemy import create_engine
 def load_df_to_postgress(df_list: [pd.DataFrame], table_names: List[str]):
 
     #get conn parameters
-    database=os.getenv("WAREHOUSE_DB"),
-    user=os.getenv("WAREHOUSE_USER"), 
-    password=os.getenv("WAREHOUSE_PASSWORD"), 
-    host=os.getenv("WAREHOUSE_HOST"), 
+    database=os.getenv("POSTGRES_DB"),
+    user=os.getenv("POSTGRES_USER"), 
+    password=os.getenv("POSTGRES_PASSWORD"), 
+    host=os.getenv("POSTGRES_HOST"), 
     port=5432
-
 
     # establish connections
     conn_string = f'postgresql://{user}:{password}@{host}:{port}/{database}'
