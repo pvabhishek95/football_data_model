@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from  typing import List
 from utils.api import make_api_call
@@ -217,7 +218,7 @@ class DataModeling:
         result_df = pd.DataFrame(all_stats_list)
         return result_df
 
-api_key="e8ae3275c1c11115be30957369c30d3c2a7097d614275af21b0989a112bad46c"
+api_key=os.getenv("API_KEY")
 response_1 = make_api_call(api_key, "2022-08-11", "2022-11-11")
 response_2 = make_api_call(api_key, "2022-11-12", "2023-05-29")
 df_1 = create_df_of_events(response_1)

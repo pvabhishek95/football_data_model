@@ -1,7 +1,8 @@
+import os
+import pandas as pd
+import psycopg2
 from typing import List
 from sqlalchemy import create_engine
-import psycopg2
-import pandas as pd
 
 
 def load_df_to_postgress(df_list: [pd.DataFrame], table_names: List[str]):
@@ -11,11 +12,11 @@ def load_df_to_postgress(df_list: [pd.DataFrame], table_names: List[str]):
     db = create_engine(conn_string)
     conn = db.connect()
     conn1 = psycopg2.connect(
-        database="soccer_data_model",
-    user='postgres', 
-    password='admin', 
-    host='localhost', 
-    port= '5432'
+        database=os.getenv("WAREHOUSE_DB"),
+    user=os.getenv("WAREHOUSE_USER"), 
+    password=os.getenv("WAREHOUSE_PASSWORD"), 
+    host=os.getenv("WAREHOUSE_HOST"), 
+    port= os.getenv("WAREHOUSE_PORT")
     )
 
     conn1.autocommit = True

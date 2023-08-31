@@ -2,7 +2,7 @@ version: '3'
 
 services:
   warehouse:
-    image: postgres:13
+    image: postgres:latest
     container_name: warehouse
     environment:
       POSTGRES_USER: ${WAREHOUSE_USER}
@@ -20,31 +20,15 @@ services:
     networks:
       - sde_network
 
-  loader:
-    image: loader
-    container_name: loader
+  apps:
+    image: abhishek_app
+    container_name: abhishek_app
     build:
       context: ./containers/loader/
     volumes:
       - ./:/opt/sde
     environment:
-      WAREHOUSE_USER: ${WAREHOUSE_USER}
-      WAREHOUSE_PASSWORD: ${WAREHOUSE_PASSWORD}
-      WAREHOUSE_DB: ${WAREHOUSE_DB}
-      WAREHOUSE_HOST: ${WAREHOUSE_HOST}
-      WARREHOUSE_PORT: ${WAREHOUSE_PORT}
-    networks:
-      - sde_network
-
-  dashboard:
-    image: metabase/metabase
-    container_name: dashboard
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./metabase-data:/metabase-data
-    environment:
-      MB_DB_FILE: /metabase-data/metabase.db
+      API_KEY: ${API_KEY}
     networks:
       - sde_network
 
