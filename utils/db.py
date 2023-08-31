@@ -12,7 +12,7 @@ def load_df_to_postgress(df_list: [pd.DataFrame], table_names: List[str]):
     user=os.getenv("WAREHOUSE_USER"), 
     password=os.getenv("WAREHOUSE_PASSWORD"), 
     host=os.getenv("WAREHOUSE_HOST"), 
-    port= os.getenv("WAREHOUSE_PORT")
+    port=5432
 
 
     # establish connections
