@@ -64,7 +64,7 @@ WITH statistics AS (
         0 AS matches_won,
         0 AS matches_drawn,
         COUNT(*) AS match_defeated,
-        COUNT(*) * 3 AS points,
+        COUNT(*) * 0 AS points,
         0 AS goals_scored,
         0 AS goals_conceded
     FROM
@@ -79,7 +79,7 @@ WITH statistics AS (
         0 AS matches_won,
         0 AS matches_drawn,
         COUNT(*) AS match_defeated,
-        COUNT(*) * 3 AS points,
+        COUNT(*) * 0 AS points,
         0 AS goals_scored,
         0 AS goals_conceded
     FROM
@@ -122,7 +122,7 @@ agg_1 AS (
         agg
 )
 SELECT
-    DENSE_RANK() OVER (ORDER BY points DESC, goal_difference ASC, goals_scored DESC, won DESC) AS position,
+    DENSE_RANK() OVER (ORDER BY points DESC, goal_difference DESC, goals_scored DESC, won DESC) AS position,
     *
 FROM
     agg_1;
